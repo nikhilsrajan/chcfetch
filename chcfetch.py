@@ -16,8 +16,8 @@ PATH_CHIRPS_V2_GLOBALDAILY_TIFS_P05DEG = '/pub/org/chg/products/CHIRPS-2.0/globa
 PATH_CHIRPS_V2_PRELIM_GLOBALDAILY_FIXED_TIFS = '/pub/org/chg/products/CHIRPS-2.0/prelim/global_daily/fixed/tifs/'
 
 
-def get_ftp():
-    return ftplib.FTP(
+def get_ftp_creds():
+    return ftputils.FTPCreds(
         host = HOST,
         user = USER,
         passwd = PASSWD,
@@ -42,18 +42,14 @@ def query_chirps_v2_global_daily(
     query_years = list(set([startdate.year, enddate.year]))
     query_paths = [f'{base_path}{year}' for year in query_years]
 
-    ftp = get_ftp()
-
     queried_listdir_dfs = []
     for path in query_paths:
         queried_listdir_dfs.append(
             ftputils.get_listdir_df(
-                ftp=ftp,
+                ftp_creds=get_ftp_creds(),
                 path=path,
             )
         )
-
-    ftp.quit()
     
     listdir_df = pd.concat(queried_listdir_dfs)
     del queried_listdir_dfs
@@ -78,20 +74,16 @@ def download_files_from_paths_df(
     paths_df:pd.DataFrame,
     download_folderpath:str,
     overwrite:bool = False,
+    njobs:int = 8,
 ):
-    ftp = get_ftp()
+    local_filepaths = ftputils.download_files(
+        ftp_creds = get_ftp_creds(),
+        paths = paths_df['path'].to_list(),
+        download_folderpath = download_folderpath,
+        overwrite = overwrite,
+        njobs = njobs,
+    )
 
-    paths_df = paths_df.reset_index(drop=True)
-
-    for index, row in tqdm.tqdm(paths_df.iterrows(), total=paths_df.shape[0]):
-        download_filepath = ftputils.download_file(
-            ftp = ftp,
-            path = row['path'],
-            download_folderpath = download_folderpath,
-            overwrite = overwrite,
-        )
-        paths_df.loc[index, 'local_filepath'] = download_filepath
-
-    ftp.quit()
+    paths_df['local_filepath'] = local_filepaths
 
     return paths_df

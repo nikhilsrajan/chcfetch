@@ -3,12 +3,32 @@ import datetime
 import warnings
 import pandas as pd
 import os
+import tqdm
+import multiprocessing as mp
+import functools
+
+
+class FTPCreds(object):
+    def __init__(self, host:str, user:str, passwd:str):
+        self.host = host
+        self.user = user
+        self.passwd = passwd
+
+
+def get_ftp(ftp_creds:FTPCreds):
+    return ftplib.FTP(
+        host = ftp_creds.host,
+        user = ftp_creds.user,
+        passwd = ftp_creds.passwd,
+    )
 
 
 def get_listdir_df(
-    ftp:ftplib.FTP, 
+    ftp_creds:FTPCreds,
     path:str,
 ) -> pd.DataFrame:
+    ftp = get_ftp(ftp_creds=ftp_creds)
+
     listdir = []
     ftp.cwd(path)
     ftp.retrlines(cmd='LIST', callback=listdir.append)
@@ -16,6 +36,8 @@ def get_listdir_df(
     cwd = ftp.pwd()
     if cwd == '/':
         cwd = ''
+
+    ftp.quit()
 
     data = {
         'type': [], 'permission': [], 'n_dirs': [], 'uid': [], 'gid': [],
@@ -75,8 +97,8 @@ def get_listdir_df(
 
 
 def download_file(
-    ftp:ftplib.FTP, 
     path:str, 
+    ftp_creds:FTPCreds,
     download_filepath:str = None,
     download_folderpath:str = None,
     overwrite:bool = False,
@@ -90,9 +112,33 @@ def download_file(
     else:
         download_folderpath = os.path.split(download_filepath)[0]
 
+    ftp = get_ftp(ftp_creds=ftp_creds)
+
     if not os.path.exists(download_filepath) or overwrite:
         os.makedirs(download_folderpath, exist_ok=True)
         ftp.retrbinary("RETR " + path, open(download_filepath, 'wb').write)
 
+    ftp.quit()
+
     return download_filepath
 
+
+def download_files(
+    ftp_creds:FTPCreds,
+    paths:list[str],
+    download_folderpath:str = None,
+    overwrite:bool = False,
+    njobs:int = 1,
+):
+    download_file_partial = functools.partial(
+        download_file,
+        ftp_creds = ftp_creds,
+        download_folderpath = download_folderpath,
+        overwrite = overwrite,
+    )
+
+    with mp.Pool(njobs) as p:
+        local_filepaths = list(tqdm.tqdm(p.imap(download_file_partial, paths), total=len(paths)))
+        # local_filepaths = list(p.map(download_file_partial, paths))
+
+    return local_filepaths
