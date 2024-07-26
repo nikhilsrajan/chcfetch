@@ -9,6 +9,16 @@ import functools
 
 
 class FTPCreds(object):
+    """
+    Class to store variables required to create an FTP object.
+
+    Note: Previously object of ftplib.FTP was passed into the functions
+    get_listdir_df and download_file. But that made it difficult to parallelise
+    the download_file function as multiprocessing was unable to pickle an IO
+    object which was the ftplib.FTP object. Thus the creation of ftplib.FTP object
+    now happens in the function and the FTPCreds since it contains only str
+    variables could easily be pickled and the function can be parallelised.
+    """
     def __init__(self, host:str, user:str, passwd:str):
         self.host = host
         self.user = user
@@ -139,6 +149,5 @@ def download_files(
 
     with mp.Pool(njobs) as p:
         local_filepaths = list(tqdm.tqdm(p.imap(download_file_partial, paths), total=len(paths)))
-        # local_filepaths = list(p.map(download_file_partial, paths))
 
     return local_filepaths

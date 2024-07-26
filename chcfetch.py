@@ -1,9 +1,11 @@
-import ftplib
 import datetime
 import pandas as pd
-import tqdm
+import gzip
+import shutil
+import os
+import rasterio
 
-import ftputils
+from . import ftputils
 
 
 # https://wiki.chc.ucsb.edu/CHIRPS_FAQ#Via_anonymous_ftp
@@ -75,6 +77,7 @@ def download_files_from_paths_df(
     download_folderpath:str,
     overwrite:bool = False,
     njobs:int = 8,
+    download_filepath_col:str = 'local_filepath',
 ):
     local_filepaths = ftputils.download_files(
         ftp_creds = get_ftp_creds(),
@@ -84,6 +87,35 @@ def download_files_from_paths_df(
         njobs = njobs,
     )
 
-    paths_df['local_filepath'] = local_filepaths
+    paths_df.loc[paths_df.index, download_filepath_col] = local_filepaths
 
     return paths_df
+
+
+def decompress_gzip(gzip_filepath:str, out_filepath:str):
+    with gzip.open(gzip_filepath) as gzip_file:
+        with open(out_filepath, 'wb') as f_out:
+            shutil.copyfileobj(gzip_file, f_out)
+
+
+def read_tif(tif_filepath:str):
+    with rasterio.open(tif_filepath) as src:
+        ndarray = src.read()
+        meta = src.meta.copy()
+    return ndarray, meta
+
+
+def add_epochs_prefix(filepath, additional:str=''):
+    folderpath, filename = os.path.split(filepath)
+    temp_prefix = f"{additional}{int(datetime.datetime.now().timestamp() * 1000000)}_"
+    temp_tif_filepath = os.path.join(folderpath, temp_prefix + filename)
+    return temp_tif_filepath
+
+
+def read_gzip_tif(gzip_tif_filepath):
+    gzip_tif_filepath_wo_ext = gzip_tif_filepath[:-3]
+    temp_tif_filepath = add_epochs_prefix(filepath=gzip_tif_filepath_wo_ext, additional='temp_')
+    decompress_gzip(gzip_filepath=gzip_tif_filepath, out_filepath=temp_tif_filepath)
+    ndarray, meta = read_tif(tif_filepath=temp_tif_filepath)
+    os.remove(temp_tif_filepath)
+    return ndarray, meta
