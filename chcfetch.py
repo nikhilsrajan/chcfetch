@@ -26,6 +26,18 @@ class Products:
         PRELIM = 'prelim'
 
 
+VALID_PRODUCTS = [Products.CHIRPS.P05, Products.CHIRPS.PRELIM]
+
+
+PRODUCT_TO_BASE_PATH_DICT = {
+    Products.CHIRPS.P05: PATH_CHIRPS_V2_GLOBALDAILY_TIFS_P05DEG,
+    Products.CHIRPS.PRELIM: PATH_CHIRPS_V2_PRELIM_GLOBALDAILY_FIXED_TIFS,
+}
+
+
+CACHE_YEARS = {}
+
+
 def get_ftp_creds():
     return ftputils.FTPCreds(
         host = HOST,
@@ -34,34 +46,43 @@ def get_ftp_creds():
     )
 
 
+def query_list_of_available_years(
+    product:str,
+):
+    if product not in VALID_PRODUCTS:
+        raise ValueError(f'Invalid product={product}. product must be from {VALID_PRODUCTS}')
+    
+    if product not in CACHE_YEARS.keys():
+        base_path = PRODUCT_TO_BASE_PATH_DICT[product]
+
+        base_path_listdir_df = ftputils.get_listdir_df(
+            ftp_creds = get_ftp_creds(),
+            path = base_path,
+        )
+
+        available_years = base_path_listdir_df[
+            (base_path_listdir_df['type'] == 'Folder') &
+            (base_path_listdir_df['name'].str.isdigit())
+        ]['name'].apply(int).to_list()
+
+        CACHE_YEARS[product] = available_years
+
+    return CACHE_YEARS[product]
+
+
 def query_chirps_v2_global_daily(
     product:str,
     startdate:datetime.datetime = None,
     enddate:datetime.datetime = None,
     path_ends_with_list:list[str] = ['tif.gz'],
+    show_progress:bool = True,
 ):  
     if path_ends_with_list is None:
         path_ends_with_list = []
 
-    VALID_PRODUCTS = [Products.CHIRPS.P05, Products.CHIRPS.PRELIM]
+    base_path = PRODUCT_TO_BASE_PATH_DICT[product]
 
-    if product not in VALID_PRODUCTS:
-        raise ValueError(f'Invalid product={product}. product must be from {VALID_PRODUCTS}')
-
-    base_path = {
-        Products.CHIRPS.P05: PATH_CHIRPS_V2_GLOBALDAILY_TIFS_P05DEG,
-        Products.CHIRPS.PRELIM: PATH_CHIRPS_V2_PRELIM_GLOBALDAILY_FIXED_TIFS,
-    }[product]
-
-    base_path_listdir_df = ftputils.get_listdir_df(
-        ftp_creds = get_ftp_creds(),
-        path = base_path,
-    )
-
-    available_years = base_path_listdir_df[
-        (base_path_listdir_df['type'] == 'Folder') &
-        (base_path_listdir_df['name'].str.isdigit())
-    ]['name'].apply(int).to_list()
+    available_years = query_list_of_available_years(product=product)
 
     query_years = copy.deepcopy(available_years)
     if startdate is not None:
@@ -72,7 +93,12 @@ def query_chirps_v2_global_daily(
     query_paths = [f'{base_path}{year}' for year in query_years]
 
     queried_listdir_dfs = []
-    for path in tqdm.tqdm(query_paths):
+    if show_progress:
+        iter_query_paths = tqdm.tqdm(query_paths)
+    else:
+        iter_query_paths = query_paths
+
+    for path in iter_query_paths:
         queried_listdir_dfs.append(
             ftputils.get_listdir_df(
                 ftp_creds=get_ftp_creds(),
