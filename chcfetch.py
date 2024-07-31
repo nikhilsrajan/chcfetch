@@ -176,10 +176,39 @@ def add_epochs_prefix(filepath, additional:str=''):
     return temp_tif_filepath
 
 
-def read_gzip_tif(gzip_tif_filepath):
-    gzip_tif_filepath_wo_ext = gzip_tif_filepath[:-3]
-    temp_tif_filepath = add_epochs_prefix(filepath=gzip_tif_filepath_wo_ext, additional='temp_')
-    decompress_gzip(gzip_filepath=gzip_tif_filepath, out_filepath=temp_tif_filepath)
-    ndarray, meta = read_tif(tif_filepath=temp_tif_filepath)
-    os.remove(temp_tif_filepath)
-    return ndarray, meta
+class GZipTIF(object):
+    def __init__(self, gzip_tif_filepath):
+        self.gzip_tif_filepath = gzip_tif_filepath
+        self.tif_filepath = None
+
+
+    def _generate_temp_tif_filepath(self):
+        gzip_tif_filepath_wo_ext = self.gzip_tif_filepath[:-3]
+        temp_tif_filepath = add_epochs_prefix(
+            filepath=gzip_tif_filepath_wo_ext, 
+            additional='temp_'
+        )
+        return temp_tif_filepath
+    
+
+    def decompress_and_load(self, tif_filepath:str=None):
+        if self.tif_filepath is None:
+            if tif_filepath is None:
+                tif_filepath = self._generate_temp_tif_filepath()
+            self.tif_filepath = tif_filepath
+            decompress_gzip(
+                gzip_filepath=self.gzip_tif_filepath, 
+                out_filepath=self.tif_filepath,
+            )
+        return self.tif_filepath
+    
+
+    def delete_tif(self):
+        if self.tif_filepath is not None:
+            os.remove(self.tif_filepath)
+            self.tif_filepath = None
+    
+
+    def __del__(self):
+        self.delete_tif()
+        
