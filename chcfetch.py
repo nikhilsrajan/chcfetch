@@ -1,9 +1,5 @@
 import datetime
 import pandas as pd
-import gzip
-import shutil
-import os
-import rasterio
 import copy
 import tqdm
 
@@ -154,61 +150,3 @@ def download_files_from_paths_df(
     paths_df.loc[paths_df.index, download_filepath_col] = local_filepaths
 
     return paths_df
-
-
-def decompress_gzip(gzip_filepath:str, out_filepath:str):
-    with gzip.open(gzip_filepath) as gzip_file:
-        with open(out_filepath, 'wb') as f_out:
-            shutil.copyfileobj(gzip_file, f_out)
-
-
-def read_tif(tif_filepath:str):
-    with rasterio.open(tif_filepath) as src:
-        ndarray = src.read()
-        meta = src.meta.copy()
-    return ndarray, meta
-
-
-def add_epochs_prefix(filepath, additional:str=''):
-    folderpath, filename = os.path.split(filepath)
-    temp_prefix = f"{additional}{int(datetime.datetime.now().timestamp() * 1000000)}_"
-    temp_tif_filepath = os.path.join(folderpath, temp_prefix + filename)
-    return temp_tif_filepath
-
-
-class GZipTIF(object):
-    def __init__(self, gzip_tif_filepath):
-        self.gzip_tif_filepath = gzip_tif_filepath
-        self.tif_filepath = None
-
-
-    def _generate_temp_tif_filepath(self):
-        gzip_tif_filepath_wo_ext = self.gzip_tif_filepath[:-3]
-        temp_tif_filepath = add_epochs_prefix(
-            filepath=gzip_tif_filepath_wo_ext, 
-            additional='temp_'
-        )
-        return temp_tif_filepath
-    
-
-    def decompress_and_load(self, tif_filepath:str=None):
-        if self.tif_filepath is None:
-            if tif_filepath is None:
-                tif_filepath = self._generate_temp_tif_filepath()
-            self.tif_filepath = tif_filepath
-            decompress_gzip(
-                gzip_filepath=self.gzip_tif_filepath, 
-                out_filepath=self.tif_filepath,
-            )
-        return self.tif_filepath
-    
-
-    def delete_tif(self):
-        if self.tif_filepath is not None:
-            os.remove(self.tif_filepath)
-            self.tif_filepath = None
-    
-
-    def __del__(self):
-        self.delete_tif()
-        
