@@ -75,6 +75,9 @@ def query_chirps_v2_global_daily(
     available_years = query_list_of_available_years(product=product)
 
     query_years = list(set(years) & set(available_years))
+
+    if len(query_years) < len(years):
+        print(f'Warning: Not all requested years present in CHC server. Quering years: {query_years}')
     
     query_paths = [f'{base_path}{year}' for year in query_years]
 
