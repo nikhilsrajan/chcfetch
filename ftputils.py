@@ -33,9 +33,9 @@ def get_ftp(ftp_creds:FTPCreds):
     )
 
 
-def get_listdir_df(
-    ftp_creds:FTPCreds,
+def get_listdir_df_single(
     path:str,
+    ftp_creds:FTPCreds,
 ) -> pd.DataFrame:
     ftp = get_ftp(ftp_creds=ftp_creds)
 
@@ -103,6 +103,28 @@ def get_listdir_df(
         data['path'].append(_path)
 
     listdir_df = pd.DataFrame(data=data)
+    return listdir_df
+
+
+def get_listdir_df(
+    ftp_creds:FTPCreds,
+    paths:list[str],
+    njobs:int = 1,
+    show_progress:bool = True,
+):
+    get_listdir_df_single_partial = functools.partial(
+        get_listdir_df_single,
+        ftp_creds = ftp_creds,
+    )
+
+    with mp.Pool(njobs) as p:
+        if show_progress:
+            listdir_dfs = list(tqdm.tqdm(p.imap(get_listdir_df_single_partial, paths), total=len(paths)))
+        else:
+            listdir_dfs = list(p.imap(get_listdir_df_single_partial, paths))
+    
+    listdir_df = pd.concat(listdir_dfs).reset_index(drop=True)
+
     return listdir_df
 
 
