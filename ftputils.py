@@ -144,13 +144,11 @@ def download_file(
     else:
         download_folderpath = os.path.split(download_filepath)[0]
 
-    ftp = get_ftp(ftp_creds=ftp_creds)
-
     if not os.path.exists(download_filepath) or overwrite:
+        ftp = get_ftp(ftp_creds=ftp_creds)
         os.makedirs(download_folderpath, exist_ok=True)
         ftp.retrbinary("RETR " + path, open(download_filepath, 'wb').write)
-
-    ftp.quit()
+        ftp.quit()
 
     return download_filepath
 

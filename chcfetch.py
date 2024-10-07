@@ -86,12 +86,6 @@ def query_chirps_v2_global_daily(
     
     paths_df = listdir_df[listdir_df['type'] == 'File'][['path']].reset_index(drop=True)
 
-    for index, row in paths_df.iterrows():
-        path = row['path']
-        date_str = path.split('/')[-1].replace('chirps-v2.0.', '').replace('.tif', '').replace('.gz', '')
-        date = datetime.datetime.strptime(date_str, '%Y.%m.%d')
-        paths_df.loc[index, 'date'] = date
-
     or_ends_filtered_indices = None
     for ends_with in path_ends_with_list:
         ends_filtered_indices = paths_df['path'].str.endswith(ends_with)
@@ -100,6 +94,12 @@ def query_chirps_v2_global_daily(
         else:
             ends_filtered_indices = or_ends_filtered_indices | ends_filtered_indices
     paths_df = paths_df[or_ends_filtered_indices]
+
+    for index, row in paths_df.iterrows():
+        path = row['path']
+        date_str = path.split('/')[-1].replace('chirps-v2.0.', '').replace('.tif', '').replace('.gz', '')
+        date = datetime.datetime.strptime(date_str, '%Y.%m.%d')
+        paths_df.loc[index, 'date'] = date
 
     paths_df = paths_df.sort_values(by='date').reset_index(drop=True)
 
