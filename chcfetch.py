@@ -12,22 +12,34 @@ USER = 'anonymous'
 PASSWD = 'your_email_address'
 
 
-PATH_CHIRPS_V2_GLOBALDAILY_TIFS_P05DEG = '/pub/org/chg/products/CHIRPS-2.0/global_daily/tifs/p05/'
-PATH_CHIRPS_V2_PRELIM_GLOBALDAILY_FIXED_TIFS = '/pub/org/chg/products/CHIRPS-2.0/prelim/global_daily/fixed/tifs/'
+PATH_CHIRPS_V2_GLOBALDAILY_TIFS_P05DEG = '/pub/org/chc/products/CHIRPS-2.0/global_daily/tifs/p05/'
+PATH_CHIRPS_V2_PRELIM_GLOBALDAILY_FIXED_TIFS = '/pub/org/chc/products/CHIRPS-2.0/prelim/global_daily/fixed/tifs/'
+
+PATH_CHIRPS_V3_GLOBALDAILY_TIFS_RNL = '/pub/org/chc/products/CHIRPS/v3.0/daily/final/rnl/'
+PATH_CHIRPS_V3_GLOBALDAILY_TIFS_SAT = '/pub/org/chc/products/CHIRPS/v3.0/daily/final/sat/'
 
 
 class Products:
-    class CHIRPS:
+    class CHIRPSv2:
         P05 = 'p05'
         PRELIM = 'prelim'
 
+    class CHIRPSv3:
+        RNL = 'RNL'
+        SAT = 'SAT'
 
-VALID_PRODUCTS = [Products.CHIRPS.P05, Products.CHIRPS.PRELIM]
+
+VALID_PRODUCTS = [
+    Products.CHIRPSv2.P05, Products.CHIRPSv2.PRELIM,
+    Products.CHIRPSv3.RNL, Products.CHIRPSv3.SAT,
+]
 
 
 PRODUCT_TO_BASE_PATH_DICT = {
-    Products.CHIRPS.P05: PATH_CHIRPS_V2_GLOBALDAILY_TIFS_P05DEG,
-    Products.CHIRPS.PRELIM: PATH_CHIRPS_V2_PRELIM_GLOBALDAILY_FIXED_TIFS,
+    Products.CHIRPSv2.P05: PATH_CHIRPS_V2_GLOBALDAILY_TIFS_P05DEG,
+    Products.CHIRPSv2.PRELIM: PATH_CHIRPS_V2_PRELIM_GLOBALDAILY_FIXED_TIFS,
+    Products.CHIRPSv3.RNL: PATH_CHIRPS_V3_GLOBALDAILY_TIFS_RNL,
+    Products.CHIRPSv3.SAT: PATH_CHIRPS_V3_GLOBALDAILY_TIFS_SAT,
 }
 
 
@@ -101,7 +113,9 @@ def query_chirps_v2_global_daily(
 
     for index, row in paths_df.iterrows():
         path = row['path']
-        date_str = path.split('/')[-1].replace('chirps-v2.0.', '').replace('.tif', '').replace('.gz', '')
+  
+        date_str = path.split('/')[-1].replace('.tif', '').replace('.gz', '')[-10:]
+        
         date = datetime.datetime.strptime(date_str, '%Y.%m.%d')
         paths_df.loc[index, 'date'] = date
 
